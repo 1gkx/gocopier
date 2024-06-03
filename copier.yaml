@@ -1,0 +1,39 @@
+project_name:
+  help: Name of your project
+
+project_slug:
+  help: Sanitised name
+  default: "{{project_name.lower().replace(' ', '_').replace('-', '_')}}"
+
+project_type:
+  help: Type of project to create
+  choices:
+    - binary
+    - library
+
+description:
+  help: Short description of your project
+  type: str
+
+license:
+  help: Which open source license to use
+  choices:
+    - MIT License
+    - BSD License
+    - ISC License
+    - Apache Software License 2.0
+    - GNU General Public License v3
+
+github_username:
+  help: Your GitHub username
+
+github_url:
+  help: The GitHub URL of the project
+  default: "https://github.com/{{github_username}}/{{project_slug}}"
+
+author_name:
+  help: Your name
+
+author_email:
+  help: Your email address
+  when: "{{project_type == 'binary'}}"
