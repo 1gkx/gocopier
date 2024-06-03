@@ -73,19 +73,15 @@ func (cp *Copier) Walk() error {
 			return nil
 		}
 
-		entry := NewEntry(path)
-
-		if entry.isTemplate {
-			if err = entry.Execute(cp.answes); err != nil {
-				return err
-			}
+		fileName, needDelete := cp.isNeedDelete(path)
+		fmt.Printf("Path: %s; Name: %s; need delete: %t\n", path, fileName, needDelete)
+		if needDelete {
+			return cp.fsys.RemoveAll(path)
 		}
 
-		// если файл, скопировать из шаблона и обогатить данными
-		// и записать в новый файл, если это шаблон - удалить файл
 		if !info.IsDir() {
 			var content []byte
-			content, err = afero.ReadFile(cp.fsys, entry.originEntry)
+			content, err = afero.ReadFile(cp.fsys, path)
 			if err != nil {
 				return errors.Wrap(err, "read file")
 			}
@@ -97,69 +93,21 @@ func (cp *Copier) Walk() error {
 				return errors.Wrap(err, "parse content file")
 			}
 			var buf bytes.Buffer
-			if err = t.Execute(&buf, cp.answes); err != nil {
+			if err := t.Execute(&buf, cp.answes); err != nil {
 				return errors.Wrap(err, "write content to buffer")
 			}
 
-			if err = afero.WriteFile(cp.fsys, entry.formatedEntry, buf.Bytes(), os.ModePerm); err != nil {
-				return err
-			}
-
-			if entry.isTemplate {
-				return cp.fsys.RemoveAll(entry.originEntry)
-			}
-
-			return nil
+			return afero.WriteFile(cp.fsys, fileName, buf.Bytes(), os.ModePerm)
 		} else {
-			exist, err := afero.DirExists(cp.fsys, entry.formatedEntry)
+			exist, err := afero.DirExists(cp.fsys, fileName)
 			if err != nil {
 				return errors.Wrap(err, "check dir exist")
 			}
 			if !exist {
-				err := cp.fsys.MkdirAll(entry.formatedEntry, os.ModePerm)
+				err := cp.fsys.MkdirAll(fileName, os.ModePerm)
 				return errors.Wrap(err, "create dir")
 			}
-			if entry.isTemplate {
-				slog.Info("delete tmpl dir", "entry", entry)
-				return cp.fsys.RemoveAll(entry.originEntry)
-			}
 		}
-
-		// fileName, needDelete := cp.isNeedDelete(path)
-		// fmt.Printf("Path: %s; Name: %s; need delete: %t\n", path, fileName, needDelete)
-		// if needDelete {
-		// 	return cp.fsys.RemoveAll(path)
-		// }
-
-		// if !info.IsDir() {
-		// 	var content []byte
-		// 	content, err = afero.ReadFile(cp.fsys, entry.originEntry)
-		// 	if err != nil {
-		// 		return errors.Wrap(err, "read file")
-		// 	}
-
-		// 	t, err := template.New("").Funcs(
-		// 		template.FuncMap(cp.funcMap),
-		// 	).Parse(string(content))
-		// 	if err != nil {
-		// 		return errors.Wrap(err, "parse content file")
-		// 	}
-		// 	var buf bytes.Buffer
-		// 	if err := t.Execute(&buf, cp.answes); err != nil {
-		// 		return errors.Wrap(err, "write content to buffer")
-		// 	}
-
-		// 	return afero.WriteFile(cp.fsys, entry.formatedEntry, buf.Bytes(), os.ModePerm)
-		// } else {
-		// 	exist, err := afero.DirExists(cp.fsys, fileName)
-		// 	if err != nil {
-		// 		return errors.Wrap(err, "check dir exist")
-		// 	}
-		// 	if !exist {
-		// 		err := cp.fsys.MkdirAll(fileName, os.ModePerm)
-		// 		return errors.Wrap(err, "create dir")
-		// 	}
-		// }
 
 		return nil
 	})
